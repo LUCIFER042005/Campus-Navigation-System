@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta name="theme-color" content="#3498db">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='icon.png') }}">
+
+    <title>Campus Navigator - Dashboard Console</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <style>
+        /* Custom styles for map container and fonts */
+        @import url('https://fonts.googleapis.com/css2?family=Raleway:wght@400;600;700;800&display=swap');
+
+        body {
+            font-family: 'Raleway', sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* --- SPLASH SCREEN STYLES --- */
+        #splash-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #ffffff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10001; /* Higher than map and controls */
+            transition: opacity 0.8s ease-out, visibility 0.8s;
+        }
+
+        .splash-content {
+            text-align: center;
+        }
+
+        .splash-logo {
+            width: 120px;
+            margin-bottom: 20px;
+            /* Optional animation */
+            animation: pulse 2s infinite ease-in-out;
+        }
+
+        .splash-title {
+            font-size: 32px;
+            font-weight: 800;
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        /* --- END SPLASH SCREEN --- */
+
+        #map {
+            flex-grow: 1;
+            height: 100vh;
+            z-index: 1;
+        }
+
+        #controls {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+            max-height: calc(100vh - 40px);
+            overflow-y: auto;
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.2);
+            width: 380px;
+            padding: 24px;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                flex-direction: column;
+                height: auto;
+            }
+            #map {
+                height: 50vh;
+                width: 100%;
+                order: 1;
+                position: relative;
+            }
+            #controls {
+                position: relative;
+                top: 0;
+                left: 0;
+                width: 100%;
+                max-height: none;
+                padding: 16px;
+                border-radius: 0;
+                box-shadow: none;
+                order: 2;
+            }
+        }
+
+        #controls::-webkit-scrollbar {
+            width: 8px;
+        }
+        #controls::-webkit-scrollbar-thumb {
+            background-color: #3498db;
+            border-radius: 4px;
+        }
+    </style>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'primary-blue': '#3498db',
+                        'primary-dark': '#2c3e50',
+                        'bg-light': '#f7f7f7',
+                    },
+                }
+            }
+        }
+    </script>
+</head>
+<body class="flex bg-gray-100">
+
+    <div id="splash-screen">
+        <div class="splash-content">
+            <img src="{{ url_for('static', filename='logo.jpg') }}" alt="Logo" class="splash-logo">
+            <h1 class="splash-title">Campus <span style="color:#3498db;">Navigator</span></h1>
+            <div class="loader"></div>
+            <p class="text-gray-500 font-semibold">Loading Smart Map...</p>
+        </div>
+    </div>
+
+    <div id="map"></div>
+s
+    <div id="controls">
+
+        <div class="mb-6 border-b pb-4 border-gray-200">
+            <h2 class="text-3xl font-extrabold text-primary-dark">
+                Campus <span class="text-primary-blue">Navigator</span>
+            </h2>
+            <p class="text-sm text-gray-500 mt-1">Routing & Administration Console</p>
+        </div>
+
+        <a href="{{ url_for('logout') }}"
+           class="w-full inline-block px-4 py-3 mb-4 text-white text-center font-bold rounded-lg
+                  bg-red-500 hover:bg-red-600 transition duration-200 shadow-lg shadow-red-500/20">
+             Logout
+        </a>
+
+        {% if user_role == 'admin' %}
+        <a href="/admin"
+           class="w-full inline-block px-4 py-3 mb-6 bg-primary-dark text-white text-center font-bold rounded-lg
+                  hover:bg-primary-dark/90 transition duration-200 shadow-lg shadow-primary-dark/20">
+             Go to Admin Dashboard
+        </a>
+        {% endif %}
+
+        <div class="p-5 border border-gray-200 rounded-xl mb-6 bg-bg-light">
+            <h3 class="text-xl font-bold text-primary-dark mb-4 border-b border-primary-blue/30 pb-2">🧭 Routing Settings</h3>
+
+            <label for="start-location-select" class="block mb-2 text-sm font-semibold text-gray-700">Start Location:</label>
+            <select id="start-location-select" class="w-full p-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-primary-blue focus:border-primary-blue transition duration-150 shadow-sm">
+                <option value="">-- Select Start --</option>
+            </select>
+
+            <label for="end-location-select" class="block mt-4 mb-2 text-sm font-semibold text-gray-700">Destination:</label>
+            <select id="end-location-select" class="w-full p-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-primary-blue focus:border-primary-blue transition duration-150 shadow-sm">
+                <option value="">-- Select Destination --</option>
+            </select>
+
+            <label for="algorithm" class="block mt-4 mb-2 text-sm font-semibold text-gray-700">Algorithm:</label>
+            <select id="algorithm" class="w-full p-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-primary-blue focus:border-primary-blue transition duration-150 shadow-sm">
+                <option value="dijkstra">Dijkstra's (Shortest Distance)</option>
+                <option value="bfs">BFS (Shortest Steps/Nodes)</option>
+                <option value="dfs">DFS (Depth First Search)</option>
+            </select>
+
+            <label for="accessibility" class="flex items-center mt-4 text-sm font-medium text-gray-700">
+                <input type="checkbox" id="accessibility" class="h-4 w-4 text-primary-blue focus:ring-primary-blue border-gray-300 rounded mr-2">
+                Prefer Accessible Routes
+            </label>
+
+            <button id="findRoute"
+                    class="w-full mt-6 px-4 py-3 text-lg font-bold text-white bg-primary-blue rounded-lg
+                           hover:bg-blue-600 transition duration-200 shadow-md shadow-primary-blue/40">
+                Find Route
+            </button>
+            <div id="output-message" class="mt-4 p-3 text-sm border-l-4 border-primary-blue bg-blue-50 text-primary-dark rounded-md">
+                Awaiting route selection...
+            </div>
+        </div>
+
+        <div class="mb-4">
+            <h3 class="text-xl font-bold text-primary-dark mb-4 border-b pb-2">📊 Status & Events</h3>
+
+            <div class="status-box p-4 mb-4 border border-gray-200 rounded-lg bg-bg-light">
+                <h4 class="text-base font-semibold text-primary-blue border-b border-gray-200 pb-2 mb-2">Lecture Status</h4>
+                <div id="currentLecture" class="text-sm text-gray-700"></div>
+                <div id="nextLecture" class="text-xs text-gray-500 mt-1"></div>
+            </div>
+
+            <div class="status-box p-4 border border-gray-200 rounded-lg bg-bg-light">
+                <h4 class="text-base font-semibold text-primary-blue border-b border-gray-200 pb-2 mb-2">Campus Events</h4>
+                <div id="todayEvent" class="text-sm text-gray-700"></div>
+                <div id="upcomingEvent" class="text-xs text-gray-500 mt-1"></div>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+        var map = L.map("map").setView([33.8833, -117.8854], 17);
+
+        L.tileLayer(
+            "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+            { maxZoom: 19, attribution: '© OpenStreetMap contributors' }
+        ).addTo(map);
+
+        map.whenReady(function() {
+            setTimeout(() => {
+                map.invalidateSize();
+            }, 100);
+        });
+
+        // SERVICE WORKER REGISTRATION
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register("{{ url_for('static', filename='sw.js') }}")
+                .then(reg => console.log('Service Worker Registered!'))
+                .catch(err => console.log('Service Worker Error:', err));
+            });
+        }
+
+        // HIDE SPLASH SCREEN LOGIC
+        window.addEventListener('load', function() {
+            // Wait 3 seconds then fade out
+            setTimeout(() => {
+                const splash = document.getElementById('splash-screen');
+                if (splash) {
+                    splash.style.opacity = '0';
+                    setTimeout(() => {
+                        splash.style.visibility = 'hidden';
+                    }, 800); // Wait for transition to finish
+                }
+            }, 3000);
+        });
+    </script>
+
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+
+</body>
+</html>

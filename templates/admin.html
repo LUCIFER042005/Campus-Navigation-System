@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard | Smart Campus Navigator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'primary-blue': '#3498db', /* Matches Login/Map Accent */
+                        'primary-dark': '#2c3e50', /* Dark Header/Text */
+                    },
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Custom styles for better dashboard appearance */
+        .tab-button.active {
+            /* Changed from blue-500 to primary-dark for theme cohesion */
+            background-color: #f0f4f8; /* Tailwind's gray-100 */
+            border-bottom: 2px solid #2c3e50; /* primary-dark */
+            color: #2c3e50; /* primary-dark text */
+        }
+        .data-table th {
+            cursor: pointer;
+            user-select: none;
+            padding: 10px 15px;
+            font-size: 0.85rem;
+            text-align: left;
+            /* Using a lighter gray for cleanliness */
+            background-color: #f3f4f6; /* Tailwind's gray-100 */
+            color: #1f2937; /* Tailwind's gray-800 */
+        }
+        .data-table td {
+            padding: 8px 15px;
+            border-bottom: 1px solid #e5e7eb;
+            font-size: 0.85rem;
+        }
+        .action-btn {
+            padding: 4px 8px;
+            margin-right: 5px;
+            font-size: 0.75rem;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="flex flex-col h-screen">
+        <header class="bg-primary-dark text-white p-4 shadow-lg flex justify-between items-center">
+            <h1 class="text-2xl font-bold">🗺️ Campus Admin Dashboard</h1>
+            <div class="flex space-x-3 items-center">
+                <a href="/" class="bg-primary-blue hover:bg-blue-700 text-white py-2 px-4 rounded-lg text-sm transition duration-150 ease-in-out">
+                    ← Back to Map
+                </a>
+                <a href="/logout" class="bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-lg text-sm transition duration-150 ease-in-out">
+                    Logout
+                </a>
+            </div>
+        </header>
+
+        <main class="flex-1 p-6 overflow-y-auto">
+
+            <div class="mb-6 border-b border-gray-200">
+                <nav class="flex space-x-2" role="tablist">
+                    <button class="tab-button active py-2 px-4 text-sm font-medium text-gray-700 hover:bg-gray-100 focus:outline-none" onclick="openTab(event, 'Dashboard')" role="tab">Dashboard Statistics</button>
+                    <button class="tab-button py-2 px-4 text-sm font-medium text-gray-700 hover:bg-gray-100 focus:outline-none" onclick="openTab(event, 'PoiManagement')" role="tab">POI Management</button>
+                    <button class="tab-button py-2 px-4 text-sm font-medium text-gray-700 hover:bg-gray-100 focus:outline-none" onclick="openTab(event, 'RouteManagement')" role="tab">Route Management</button>
+                </nav>
+            </div>
+
+            <div id="Dashboard" class="tab-content">
+                <h2 class="text-xl font-semibold mb-4">Usage Overview</h2>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div class="bg-white p-5 rounded-lg shadow-md border-l-4 border-primary-blue">
+                        <p class="text-sm font-medium text-gray-500">Total Searches</p>
+                        <p id="stat-total-searches" class="text-3xl font-bold text-primary-dark mt-1">...</p>
+                    </div>
+                    <div class="bg-white p-5 rounded-lg shadow-md border-l-4 border-green-500">
+                        <p class="text-sm font-medium text-gray-500">Accessible Searches</p>
+                        <p id="stat-accessible-searches" class="text-3xl font-bold text-primary-dark mt-1">...</p>
+                    </div>
+                    <div class="bg-white p-5 rounded-lg shadow-md border-l-4 border-yellow-500">
+                        <p class="text-sm font-medium text-gray-500">Unique Routes Found</p>
+                        <p id="stat-unique-routes" class="text-3xl font-bold text-primary-dark mt-1">...</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="bg-white p-5 rounded-lg shadow-md">
+                        <h3 class="text-lg font-semibold mb-3 border-b pb-2">Top Searched POIs</h3>
+                        <div class="flex space-x-6">
+                            <div class="w-1/2">
+                                <h4 class="text-md font-medium text-primary-blue mb-2">Top Starting Points</h4>
+                                <ul id="top-starts-list" class="space-y-1 text-sm"></ul>
+                            </div>
+                            <div class="w-1/2">
+                                <h4 class="text-md font-medium text-green-600 mb-2">Top Destinations</h4>
+                                <ul id="top-ends-list" class="space-y-1 text-sm"></ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-5 rounded-lg shadow-md">
+                        <h3 class="text-lg font-semibold mb-3 border-b pb-2">POI Category Breakdown</h3>
+                        <div id="category-breakdown">
+                            </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="PoiManagement" class="tab-content hidden">
+                <h2 class="text-xl font-semibold mb-4">Point of Interest (POI) Management</h2>
+
+                <button onclick="openPoiModal('create')" class="mb-4 bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded transition duration-150 ease-in-out">
+                    + Add New POI
+                </button>
+
+                <div class="bg-white rounded-lg shadow-md overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200 data-table">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="w-1/12" onclick="sortTable(0, 'poi')">ID</th>
+                                <th class="w-2/12" onclick="sortTable(1, 'poi')">Name</th>
+                                <th class="w-1/12" onclick="sortTable(2, 'poi')">Category</th>
+                                <th class="w-1/12" onclick="sortTable(3, 'poi')">Building/Floor</th>
+                                <th class="w-2/12" onclick="sortTable(4, 'poi')">Lat/Lng</th>
+                                <th class="w-1/12" onclick="sortTable(5, 'poi')">Accessible</th>
+                                <th class="w-3/12">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="poi-table-body" class="bg-white divide-y divide-gray-200">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="RouteManagement" class="tab-content hidden">
+                <h2 class="text-xl font-semibold mb-4">Route (Edge) Management</h2>
+
+                <button onclick="openRouteModal('create')" class="mb-4 bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded transition duration-150 ease-in-out">
+                    + Add New Route
+                </button>
+
+                <div class="bg-white rounded-lg shadow-md overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200 data-table">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="w-1/12" onclick="sortTable(0, 'route')">Route ID</th>
+                                <th class="w-2/12" onclick="sortTable(1, 'route')">Start POI (ID)</th>
+                                <th class="w-2/12" onclick="sortTable(2, 'route')">End POI (ID)</th>
+                                <th class="w-2/12" onclick="sortTable(3, 'route')">Distance (m)</th>
+                                <th class="w-2/12" onclick="sortTable(4, 'route')">Time (min)</th>
+                                <th class="w-1/12" onclick="sortTable(5, 'route')">Accessible</th>
+                                <th class="w-2/12">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="route-table-body" class="bg-white divide-y divide-gray-200">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="global-message" class="fixed bottom-5 right-5 p-3 rounded-lg text-white font-semibold shadow-xl hidden transition-opacity duration-300"></div>
+
+        </main>
+    </div>
+
+    <div id="poi-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-lg p-6">
+            <h3 id="poi-modal-title" class="text-xl font-bold mb-4 border-b pb-2">Add New POI</h3>
+            <form id="poi-form" onsubmit="handlePoiSubmit(event)">
+                <input type="hidden" id="poi-mode" value="create">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label for="poi-id" class="block text-sm font-medium text-gray-700">POI ID (Must be unique)</label>
+                        <input type="number" id="poi-id" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2 border">
+                    </div>
+                    <div>
+                        <label for="poi-name" class="block text-sm font-medium text-gray-700">Name</label>
+                        <input type="text" id="poi-name" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2 border">
+                    </div>
+                    <div>
+                        <label for="poi-category" class="block text-sm font-medium text-gray-700">Category</label>
+                        <input type="text" id="poi-category" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2 border">
+                    </div>
+                    <div>
+                        <label for="poi-building-id" class="block text-sm font-medium text-gray-700">Building ID (Optional)</label>
+                        <input type="number" id="poi-building-id" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2 border">
+                    </div>
+                    <div>
+                        <label for="poi-floor" class="block text-sm font-medium text-gray-700">Floor (Optional)</label>
+                        <input type="number" id="poi-floor" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2 border">
+                    </div>
+                    <div>
+                        <label for="poi-is-accessible" class="block text-sm font-medium text-gray-700">Accessible?</label>
+                        <select id="poi-is-accessible" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2 border">
+                            <option value="1">Yes</option>
+                            <option value="0">No</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="poi-latitude" class="block text-sm font-medium text-gray-700">Latitude</label>
+                        <input type="number" step="0.0000001" id="poi-latitude" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2 border">
+                    </div>
+                    <div>
+                        <label for="poi-longitude" class="block text-sm font-medium text-gray-700">Longitude</label>
+                        <input type="number" step="0.0000001" id="poi-longitude" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2 border">
+                    </div>
+                </div>
+
+                <div class="mt-6 flex justify-end space-x-3">
+                    <button type="button" onclick="closePoiModal()" class="py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50">Cancel</button>
+                    <button type="submit" id="poi-submit-btn" class="py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-blue hover:bg-blue-700">Save POI</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="route-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-lg p-6">
+            <h3 id="route-modal-title" class="text-xl font-bold mb-4 border-b pb-2">Add New Route</h3>
+            <form id="route-form" onsubmit="handleRouteSubmit(event)">
+                <input type="hidden" id="route-mode" value="create">
+                <input type="hidden" id="route-id">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label for="route-start-poi" class="block text-sm font-medium text-gray-700">Start POI ID</label>
+                        <input type="number" id="route-start-poi" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2 border">
+                    </div>
+                    <div>
+                        <label for="route-end-poi" class="block text-sm font-medium text-gray-700">End POI ID</label>
+                        <input type="number" id="route-end-poi" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2 border">
+                    </div>
+                    <div>
+                        <label for="route-distance" class="block text-sm font-medium text-gray-700">Distance (meters)</label>
+                        <input type="number" step="0.01" id="route-distance" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2 border">
+                    </div>
+                    <div>
+                        <label for="route-time" class="block text-sm font-medium text-gray-700">Time (minutes)</label>
+                        <input type="number" step="0.01" id="route-time" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2 border">
+                    </div>
+                    <div class="col-span-2">
+                        <label for="route-is-accessible" class="block text-sm font-medium text-gray-700">Accessible?</label>
+                        <select id="route-is-accessible" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2 border">
+                            <option value="1">Yes</option>
+                            <option value="0">No</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="mt-6 flex justify-end space-x-3">
+                    <button type="button" onclick="closeRouteModal()" class="py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50">Cancel</button>
+                    <button type="submit" id="route-submit-btn" class="py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-blue hover:bg-blue-700">Save Route</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
+    <script>
+        let poiData = [];
+        let routeData = [];
+        let currentSortColumn = -1;
+        let isAscending = true;
+
+        // --- GLOBAL UTILITIES ---
+
+        function showMessage(message, isSuccess = true) {
+            const msgEl = document.getElementById('global-message');
+            msgEl.textContent = message;
+            msgEl.classList.remove('hidden', 'bg-red-500', 'bg-green-500');
+            msgEl.classList.add(isSuccess ? 'bg-green-500' : 'bg-red-500');
+
+            setTimeout(() => {
+                msgEl.classList.add('hidden');
+            }, 4000);
+        }
+
+        function openTab(evt, tabName) {
+            // Declare all variables
+            let i, tabcontent, tablinks;
+
+            // Get all elements with class="tab-content" and hide them
+            tabcontent = document.getElementsByClassName("tab-content");
+            for (i = 0; i < tabcontent.length; i++) {
+                tabcontent[i].style.display = "none";
+            }
+
+            // Get all elements with class="tab-button" and remove the active class
+            tablinks = document.getElementsByClassName("tab-button");
+            for (i = 0; i < tablinks.length; i++) {
+                tablinks[i].classList.remove("active");
+            }
+
+            // Show the current tab, and add an "active" class to the button that opened the tab
+            document.getElementById(tabName).style.display = "block";
+            evt.currentTarget.classList.add("active");
+
+            // Load data when tabs are opened
+            if (tabName === 'PoiManagement') fetchPoiData();
+            if (tabName === 'RouteManagement') fetchRouteData();
+        }
+
+        // --- DASHBOARD STATS LOGIC ---
+
+        async function fetchDashboardStats() {
+            try {
+                // All API calls now go to the protected routes. If session expires, they will fail silently or require re-login.
+                const response = await fetch('/api/dashboard_stats');
+                if (response.status === 302 || response.redirected) {
+                     // This indicates a redirect to login, handle it gracefully by not showing an error
+                     return;
+                }
+                const data = await response.json();
+
+                if (data.success) {
+                    // 1. Update Stats Cards
+                    document.getElementById('stat-total-searches').textContent = data.stats.total_searches;
+                    document.getElementById('stat-accessible-searches').textContent = data.stats.accessible_searches;
+                    document.getElementById('stat-unique-routes').textContent = data.stats.unique_routes_searched;
+
+                    // 2. Update Top POIs
+                    const topStartsList = document.getElementById('top-starts-list');
+                    const topEndsList = document.getElementById('top-ends-list');
+                    topStartsList.innerHTML = '';
+                    topEndsList.innerHTML = '';
+
+                    if (data.top_pois.top_starts.length === 0) {
+                        topStartsList.innerHTML = '<li class="text-gray-500 italic">No search history yet.</li>';
+                        topEndsList.innerHTML = '<li class="text-gray-500 italic">No search history yet.</li>';
+                    } else {
+                        data.top_pois.top_starts.forEach(p => {
+                            topStartsList.innerHTML += `<li>${p.poi_name} (${p.search_count})</li>`;
+                        });
+                        data.top_pois.top_ends.forEach(p => {
+                            topEndsList.innerHTML += `<li>${p.poi_name} (${p.search_count})</li>`;
+                        });
+                    }
+
+                    // 3. Update Category Breakdown
+                    const breakdownDiv = document.getElementById('category-breakdown');
+                    breakdownDiv.innerHTML = '';
+                    const totalPois = data.category_counts.reduce((sum, item) => sum + item.count, 0);
+
+                    data.category_counts.forEach(c => {
+                        const percentage = totalPois > 0 ? ((c.count / totalPois) * 100).toFixed(0) : 0;
+                        breakdownDiv.innerHTML += `
+                            <div class="mb-2">
+                                <div class="flex justify-between text-sm">
+                                    <span>${c.category}</span>
+                                    <span>${c.count} (${percentage}%)</span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-2.5">
+                                    <div class="bg-primary-blue h-2.5 rounded-full" style="width: ${percentage}%"></div>
+                                </div>
+                            </div>
+                        `;
+                    });
+
+                } else {
+                    showMessage('Failed to load dashboard statistics.', false);
+                }
+            } catch (error) {
+                // Network error handling
+                showMessage(`Error fetching stats: ${error.message}`, false);
+            }
+        }
+
+        // --- POI MANAGEMENT LOGIC (CRUD) ---
+
+        async function fetchPoiData() {
+            try {
+                const response = await fetch('/api/pois/data');
+                if (response.status === 302 || response.redirected) return;
+
+                const data = await response.json();
+
+                if (data.success) {
+                    poiData = data.data;
+                    renderPoiTable(poiData);
+                } else {
+                    showMessage('Failed to load POI data.', false);
+                }
+            } catch (error) {
+                showMessage(`Error fetching POI data: ${error.message}`, false);
+            }
+        }
+
+        function renderPoiTable(data) {
+            const tableBody = document.getElementById('poi-table-body');
+            tableBody.innerHTML = '';
+
+            data.forEach(poi => {
+                const row = tableBody.insertRow();
+                row.id = `poi-row-${poi.poi_id}`;
+                row.dataset.poiData = JSON.stringify(poi);
+
+                // ID
+                row.insertCell().textContent = poi.poi_id;
+                // Name
+                row.insertCell().textContent = poi.name;
+                // Category
+                row.insertCell().textContent = poi.category;
+                // Building/Floor
+                row.insertCell().textContent = `${poi.building_id || '-'} / ${poi.floor || '-'}`;
+
+                // Lat/Lng - FIXED: using parseFloat() on coordinates
+                row.insertCell().textContent = `${parseFloat(poi.latitude).toFixed(6)}, ${parseFloat(poi.longitude).toFixed(6)}`;
+
+                // Accessible
+                row.insertCell().textContent = poi.is_accessible == 1 ? 'Yes' : 'No';
+
+                // Actions
+                const actionsCell = row.insertCell();
+                actionsCell.innerHTML = `
+                    <button onclick="openPoiModal('update', ${poi.poi_id})" class="action-btn bg-yellow-500 hover:bg-yellow-600 text-white">Edit</button>
+                    <button onclick="deletePoi(${poi.poi_id})" class="action-btn bg-red-500 hover:bg-red-600 text-white">Delete</button>
+                `;
+            });
+        }
+
+        function openPoiModal(mode, poiId = null) {
+            const modal = document.getElementById('poi-modal');
+            const form = document.getElementById('poi-form');
+            const title = document.getElementById('poi-modal-title');
+            const submitBtn = document.getElementById('poi-submit-btn');
+            const poiIdInput = document.getElementById('poi-id');
+
+            form.reset();
+            document.getElementById('poi-mode').value = mode;
+            modal.style.display = 'flex';
+
+            if (mode === 'create') {
+                title.textContent = 'Add New POI';
+                submitBtn.textContent = 'Create POI';
+                poiIdInput.readOnly = false;
+                poiIdInput.disabled = false;
+                poiIdInput.required = true;
+
+            } else { // mode === 'update'
+                title.textContent = 'Update POI: ' + poiId;
+                submitBtn.textContent = 'Save Changes';
+                poiIdInput.readOnly = true;
+                poiIdInput.disabled = true; // Prevents ID from being sent in the form data accidentally
+                poiIdInput.required = false;
+
+                const poi = poiData.find(p => p.poi_id == poiId);
+                if (poi) {
+                    document.getElementById('poi-id').value = poi.poi_id;
+                    document.getElementById('poi-name').value = poi.name;
+                    document.getElementById('poi-category').value = poi.category;
+                    document.getElementById('poi-building-id').value = poi.building_id;
+                    document.getElementById('poi-floor').value = poi.floor;
+                    document.getElementById('poi-is-accessible').value = poi.is_accessible;
+                    document.getElementById('poi-latitude').value = poi.latitude;
+                    document.getElementById('poi-longitude').value = poi.longitude;
+                }
+            }
+        }
+
+        function closePoiModal() {
+            document.getElementById('poi-modal').style.display = 'none';
+        }
+
+        async function handlePoiSubmit(event) {
+            event.preventDefault();
+            const mode = document.getElementById('poi-mode').value;
+            const endpoint = mode === 'create' ? '/api/poi/create' : '/api/poi/update';
+
+            const payload = {
+                poi_id: parseInt(document.getElementById('poi-id').value),
+                name: document.getElementById('poi-name').value,
+                category: document.getElementById('poi-category').value,
+                building_id: parseInt(document.getElementById('poi-building-id').value) || null,
+                floor: parseInt(document.getElementById('poi-floor').value) || null,
+                is_accessible: parseInt(document.getElementById('poi-is-accessible').value),
+                latitude: parseFloat(document.getElementById('poi-latitude').value),
+                longitude: parseFloat(document.getElementById('poi-longitude').value)
+            };
+
+            // If updating, the poi_id field is disabled, so we must ensure it is present
+            if (mode === 'update') {
+                 // Re-enable the ID field for sending (if it was disabled for UI)
+                const poiIdInput = document.getElementById('poi-id');
+                poiIdInput.disabled = false;
+                payload.poi_id = parseInt(poiIdInput.value);
+                poiIdInput.disabled = true; // Re-disable it after getting the value
+            }
+
+            try {
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (response.status === 302 || response.redirected) return;
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showMessage(result.message, true);
+                    closePoiModal();
+                    await fetchPoiData(); // Reload table data
+                    await fetchDashboardStats(); // Update stats if POI categories changed
+                } else {
+                    showMessage(result.message, false);
+                }
+            } catch (error) {
+                showMessage(`Network Error: ${error.message}`, false);
+            }
+        }
+
+        async function deletePoi(poiId) {
+            // Using custom modal instead of confirm() for best practice in iframe environments
+            if (!window.confirm(`Are you sure you want to delete POI ID ${poiId}? This will also delete all associated routes!`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/poi/delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ poi_id: poiId })
+                });
+
+                if (response.status === 302 || response.redirected) return;
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showMessage(result.message, true);
+                    await fetchPoiData();
+                    await fetchRouteData(); // Also reload routes since they might have been deleted
+                    await fetchDashboardStats();
+                } else {
+                    showMessage(result.message, false);
+                }
+            } catch (error) {
+                showMessage(`Network Error: ${error.message}`, false);
+            }
+        }
+
+        // --- ROUTE MANAGEMENT LOGIC (CRUD) ---
+
+        async function fetchRouteData() {
+            try {
+                const response = await fetch('/api/routes/data');
+                if (response.status === 302 || response.redirected) return;
+
+                const data = await response.json();
+
+                if (data.success) {
+                    routeData = data.data;
+                    renderRouteTable(routeData);
+                } else {
+                    showMessage('Failed to load Route data.', false);
+                }
+            } catch (error) {
+                showMessage(`Error fetching Route data: ${error.message}`, false);
+            }
+        }
+
+        function renderRouteTable(data) {
+            const tableBody = document.getElementById('route-table-body');
+            tableBody.innerHTML = '';
+
+            data.forEach(route => {
+                const row = tableBody.insertRow();
+                row.id = `route-row-${route.route_id}`;
+                row.dataset.routeData = JSON.stringify(route);
+
+                // Route ID
+                row.insertCell().textContent = route.route_id;
+                // Start POI
+                row.insertCell().textContent = route.poi_id_a;
+                // End POI
+                row.insertCell().textContent = route.poi_id_b;
+
+                // Distance - FIXED: using parseFloat() on distance
+                row.insertCell().textContent = parseFloat(route.distance_m).toFixed(2);
+
+                // Time - FIXED: using parseFloat() on time
+                row.insertCell().textContent = parseFloat(route.travel_time_min).toFixed(2);
+
+                // Accessible
+                row.insertCell().textContent = route.is_accessible == 1 ? 'Yes' : 'No';
+
+                // Actions
+                const actionsCell = row.insertCell();
+                actionsCell.innerHTML = `
+                    <button onclick="openRouteModal('update', ${route.route_id})" class="action-btn bg-yellow-500 hover:bg-yellow-600 text-white">Edit</button>
+                    <button onclick="deleteRoute(${route.route_id})" class="action-btn bg-red-500 hover:bg-red-600 text-white">Delete</button>
+                `;
+            });
+        }
+
+        function openRouteModal(mode, routeId = null) {
+            const modal = document.getElementById('route-modal');
+            const form = document.getElementById('route-form');
+            const title = document.getElementById('route-modal-title');
+            const submitBtn = document.getElementById('route-submit-btn');
+            const routeIdInput = document.getElementById('route-id');
+            const startPoiInput = document.getElementById('route-start-poi');
+            const endPoiInput = document.getElementById('route-end-poi');
+
+            form.reset();
+            document.getElementById('route-mode').value = mode;
+            modal.style.display = 'flex';
+
+            if (mode === 'create') {
+                title.textContent = 'Add New Route (A to B)';
+                submitBtn.textContent = 'Create Route';
+                routeIdInput.value = '';
+                startPoiInput.readOnly = false;
+                endPoiInput.readOnly = false;
+            } else { // mode === 'update'
+                title.textContent = 'Update Route ID: ' + routeId;
+                submitBtn.textContent = 'Save Changes';
+
+                const route = routeData.find(r => r.route_id == routeId);
+                if (route) {
+                    routeIdInput.value = route.route_id;
+                    startPoiInput.value = route.poi_id_a;
+                    endPoiInput.value = route.poi_id_b;
+                    startPoiInput.readOnly = true; // Don't allow changing IDs for update for simplicity
+                    endPoiInput.readOnly = true;
+                    document.getElementById('route-distance').value = route.distance_m;
+                    document.getElementById('route-time').value = route.travel_time_min;
+                    document.getElementById('route-is-accessible').value = route.is_accessible;
+                }
+            }
+        }
+
+        function closeRouteModal() {
+            document.getElementById('route-modal').style.display = 'none';
+        }
+
+        async function handleRouteSubmit(event) {
+            event.preventDefault();
+            const mode = document.getElementById('route-mode').value;
+            const endpoint = mode === 'create' ? '/api/route/create' : '/api/route/update';
+
+            const payload = {
+                route_id: parseInt(document.getElementById('route-id').value) || null,
+                poi_id_a: parseInt(document.getElementById('route-start-poi').value),
+                poi_id_b: parseInt(document.getElementById('route-end-poi').value),
+                distance_m: parseFloat(document.getElementById('route-distance').value),
+                travel_time_min: parseFloat(document.getElementById('route-time').value),
+                is_accessible: parseInt(document.getElementById('route-is-accessible').value)
+            };
+
+            try {
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (response.status === 302 || response.redirected) return;
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showMessage(result.message, true);
+                    closeRouteModal();
+                    await fetchRouteData(); // Reload table data
+                    await fetchPoiData(); // Reload POI data to re-graph
+                } else {
+                    showMessage(result.message, false);
+                }
+            } catch (error) {
+                showMessage(`Network Error: ${error.message}`, false);
+            }
+        }
+
+        async function deleteRoute(routeId) {
+            // Using custom modal instead of confirm() for best practice in iframe environments
+            if (!window.confirm(`Are you sure you want to delete Route ID ${routeId}?`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/route/delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ route_id: routeId })
+                });
+
+                if (response.status === 302 || response.redirected) return;
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showMessage(result.message, true);
+                    await fetchRouteData();
+                    await fetchPoiData(); // Reload POI data to re-graph
+                } else {
+                    showMessage(result.message, false);
+                }
+            } catch (error) {
+                showMessage(`Network Error: ${error.message}`, false);
+            }
+        }
+
+        // --- SORTING LOGIC ---
+
+        function sortTable(columnIndex, type) {
+            const dataArray = type === 'poi' ? poiData : routeData;
+            const tableBodyId = type === 'poi' ? 'poi-table-body' : 'route-table-body';
+            const renderFunction = type === 'poi' ? renderPoiTable : renderRouteTable;
+
+            // Determine sort direction
+            if (currentSortColumn === columnIndex) {
+                isAscending = !isAscending;
+            } else {
+                currentSortColumn = columnIndex;
+                isAscending = true;
+            }
+
+            // Get the property name based on the column index
+            const poiKeys = ['poi_id', 'name', 'category', 'building_id', 'latitude', 'is_accessible'];
+            const routeKeys = ['route_id', 'poi_id_a', 'poi_id_b', 'distance_m', 'travel_time_min', 'is_accessible'];
+            const key = type === 'poi' ? poiKeys[columnIndex] : routeKeys[columnIndex];
+
+            // Sort the array
+            dataArray.sort((a, b) => {
+                let aValue = a[key];
+                let bValue = b[key];
+
+                // Handle mixed data types
+                if (typeof aValue === 'string') {
+                    aValue = aValue.toLowerCase();
+                    bValue = bValue.toLowerCase();
+                } else if (key === 'building_id') {
+                    // Handle null/undefined for building_id and floor gracefully
+                    aValue = aValue === null || aValue === undefined ? -1 : aValue;
+                    bValue = bValue === null || bValue === undefined ? -1 : bValue;
+                }
+
+                if (aValue < bValue) return isAscending ? -1 : 1;
+                if (aValue > bValue) return isAscending ? 1 : -1;
+                return 0;
+            });
+
+            // Re-render the table
+            renderFunction(dataArray);
+        }
+
+        // --- INITIALIZATION ---
+
+        window.onload = function() {
+            // Set the default active tab
+            openTab({ currentTarget: document.querySelector('.tab-button') }, 'Dashboard');
+
+            // Load initial dashboard statistics
+            fetchDashboardStats();
+
+            // Load POI and Route data once the page is fully loaded
+            // They will be rendered when their respective tabs are opened
+            fetchPoiData();
+            fetchRouteData();
+        };
+
+    </script>
+</body>
+</html>
