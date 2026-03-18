@@ -1,0 +1,16 @@
+{
+  "name": "Campus Navigation System",
+  "short_name": "CampusNav",
+  "description": "Find the shortest path across campus.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2196F3",
+  "icons": [
+    {
+      "src": "/static/icon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
