@@ -10,6 +10,7 @@ static_dir = os.path.join(base_dir, '../static')
 app = Flask(__name__, template_folder=template_dir, static_folder=static_dir)
 
 def get_db_connection():
+    """Connects to TiDB Cloud using your Vercel Environment Variable"""
     return mysql.connector.connect(
         host="gateway01.ap-southeast-1.prod.aws.tidbcloud.com",
         port=4000,
@@ -22,16 +23,18 @@ def get_db_connection():
 
 @app.route('/')
 def home():
+    """Serves your main index.html file"""
     return render_template('index.html')
 
 @app.route('/api/pois')
 def get_pois():
+    """Fetches building names for your dropdown menus"""
     conn = None
     cursor = None
     try:
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
-        # Fetching ID and Name for dropdowns
+        # Fetching ID and Name for the dropdowns
         query = "SELECT id, name FROM nodes WHERE name IS NOT NULL AND name != '' ORDER BY name ASC"
         cursor.execute(query)
         locations = cursor.fetchall()
@@ -45,7 +48,7 @@ def get_pois():
 
 @app.route('/api/navigate', methods=['POST'])
 def navigate():
-    """Fetches coordinates and prepares the path for the map"""
+    """Fetches coordinates and prepares the path for the map to draw"""
     conn = None
     cursor = None
     try:
@@ -56,7 +59,7 @@ def navigate():
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
 
-        # 1. Get coordinates for Start
+        # 1. Get coordinates for Start point
         cursor.execute("SELECT latitude, longitude FROM nodes WHERE name = %s", (start_name,))
         start_node = cursor.fetchone()
 
@@ -65,10 +68,10 @@ def navigate():
         end_node = cursor.fetchone()
 
         if not start_node or not end_node:
-            return jsonify({"status": "error", "message": "Locations not found in database"})
+            return jsonify({"status": "error", "message": "Location not found in TiDB"})
 
-        # 3. Create the path (A simple line between the two points)
-        # Note: Once this works, we can plug in your Dijkstra file logic here!
+        # 3. Create the path coordinates [ [lat, lng], [lat, lng] ]
+        # This format is exactly what Leaflet (L.polyline) needs
         path_coords = [
             [float(start_node['latitude']), float(start_node['longitude'])],
             [float(end_node['latitude']), float(end_node['longitude'])]
@@ -77,7 +80,7 @@ def navigate():
         return jsonify({
             "status": "success",
             "path": path_coords,
-            "message": f"Path found from {start_name} to {end_name}"
+            "message": f"Routing from {start_name} to {end_name}"
         })
     except Exception as e:
         print(f"NAVIGATION ERROR: {e}")
@@ -88,6 +91,7 @@ def navigate():
 
 @app.route('/logout')
 def logout():
+    """Redirects or shows logout message"""
     return "Logged out! <a href='/'>Go back to Map</a>"
 
 if __name__ == "__main__":
