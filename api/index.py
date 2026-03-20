@@ -2,8 +2,7 @@ from flask import Flask, render_template, request, jsonify
 import mysql.connector
 import os
 
-app = Flask(__name__)
-
+app = Flask(__name__, template_folder='../templates', static_folder='../static')
 def get_db_connection():
     return mysql.connector.connect(
         host="gateway01.ap-southeast-1.prod.aws.tidbcloud.com",
