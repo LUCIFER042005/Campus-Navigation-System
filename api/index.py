@@ -9,9 +9,7 @@ static_dir = os.path.join(base_dir, '../static')
 
 app = Flask(__name__, template_folder=template_dir, static_folder=static_dir)
 
-
 def get_db_connection():
-    """Connects to TiDB Cloud using your Vercel Environment Variable"""
     return mysql.connector.connect(
         host="gateway01.ap-southeast-1.prod.aws.tidbcloud.com",
         port=4000,
@@ -22,60 +20,75 @@ def get_db_connection():
         autocommit=True
     )
 
-
 @app.route('/')
 def home():
     return render_template('index.html')
 
-
 @app.route('/api/pois')
 def get_pois():
-    """Fetches building names for the dropdowns"""
     conn = None
     cursor = None
     try:
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
-
-        # We use DISTINCT to avoid duplicates and check for empty names
-        # IMPORTANT: Make sure your table is named 'nodes' in TiDB!
-        query = "SELECT DISTINCT name FROM nodes WHERE name IS NOT NULL AND name != '' ORDER BY name ASC"
+        # Fetching ID and Name for dropdowns
+        query = "SELECT id, name FROM nodes WHERE name IS NOT NULL AND name != '' ORDER BY name ASC"
         cursor.execute(query)
-
         locations = cursor.fetchall()
-        print(f"DEBUG: Found {len(locations)} locations in database.")
         return jsonify(locations)
     except Exception as e:
-        print(f"DATABASE ERROR: {e}")
-        return jsonify([])  # Return empty list so the site doesn't crash
+        print(f"DATABASE ERROR (POIs): {e}")
+        return jsonify([])
     finally:
         if cursor: cursor.close()
         if conn: conn.close()
 
-
 @app.route('/api/navigate', methods=['POST'])
 def navigate():
-    """Handles the pathfinding request when you click 'Find Route'"""
+    """Fetches coordinates and prepares the path for the map"""
+    conn = None
+    cursor = None
     try:
         data = request.json
-        start_point = data.get('start')
-        end_point = data.get('end')
+        start_name = data.get('start')
+        end_name = data.get('end')
 
-        # For now, we return a success message.
-        # Later, we can add your Dijkstra algorithm logic here!
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+
+        # 1. Get coordinates for Start
+        cursor.execute("SELECT latitude, longitude FROM nodes WHERE name = %s", (start_name,))
+        start_node = cursor.fetchone()
+
+        # 2. Get coordinates for Destination
+        cursor.execute("SELECT latitude, longitude FROM nodes WHERE name = %s", (end_name,))
+        end_node = cursor.fetchone()
+
+        if not start_node or not end_node:
+            return jsonify({"status": "error", "message": "Locations not found in database"})
+
+        # 3. Create the path (A simple line between the two points)
+        # Note: Once this works, we can plug in your Dijkstra file logic here!
+        path_coords = [
+            [float(start_node['latitude']), float(start_node['longitude'])],
+            [float(end_node['latitude']), float(end_node['longitude'])]
+        ]
+
         return jsonify({
             "status": "success",
-            "path": [],  # If you have a list of coordinates, put them here
-            "message": f"Calculating path from {start_point} to {end_point}"
+            "path": path_coords,
+            "message": f"Path found from {start_name} to {end_name}"
         })
     except Exception as e:
+        print(f"NAVIGATION ERROR: {e}")
         return jsonify({"status": "error", "message": str(e)})
-
+    finally:
+        if cursor: cursor.close()
+        if conn: conn.close()
 
 @app.route('/logout')
 def logout():
     return "Logged out! <a href='/'>Go back to Map</a>"
-
 
 if __name__ == "__main__":
     app.run(debug=True)
