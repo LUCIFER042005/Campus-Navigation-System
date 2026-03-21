@@ -21,10 +21,10 @@ def get_db_connection():
     )
 
 
-@app.route('/')
-def home():
+@app.route('/logout')
+def logout():
+    # This just sends them back to the home page for now
     return render_template('index.html')
-
 
 @app.route('/api/pois')
 def get_pois():
