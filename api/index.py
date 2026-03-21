@@ -3,11 +3,10 @@ from flask import Flask, render_template, request, jsonify
 import mysql.connector
 import networkx as nx
 
-# Critical: tells Flask to look for folders in the root
+# This ensures Flask finds your folders correctly on Vercel
 app = Flask(__name__,
             template_folder='../templates',
             static_folder='../static')
-
 
 def get_db_connection():
     return mysql.connector.connect(
@@ -20,10 +19,13 @@ def get_db_connection():
         autocommit=True
     )
 
+@app.route('/')
+def home():
+    return render_template('index.html')
 
+# THIS IS THE FIX: Adding the missing logout route
 @app.route('/logout')
 def logout():
-    # This just sends them back to the home page for now
     return render_template('index.html')
 
 @app.route('/api/pois')
@@ -39,7 +41,6 @@ def get_pois():
     finally:
         if conn: conn.close()
 
-
 @app.route('/api/navigate')
 def navigate():
     start_id = request.args.get('start')
@@ -48,8 +49,6 @@ def navigate():
     try:
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
-
-        # Get all nodes and edges to build the map graph
         cursor.execute("SELECT id, latitude, longitude FROM nodes")
         nodes = cursor.fetchall()
         cursor.execute("SELECT start_node, end_node, weight FROM edges")
@@ -61,15 +60,14 @@ def navigate():
         for edge in edges:
             G.add_edge(edge['start_node'], edge['end_node'], weight=float(edge['weight']))
 
-        # Dijkstra Calculation
         path_ids = nx.shortest_path(G, source=int(start_id), target=int(end_id), weight='weight')
-
-        # Convert path IDs back to coordinates for the map
         node_dict = {n['id']: [float(n['latitude']), float(n['longitude'])] for n in nodes}
         path_coords = [node_dict[node_id] for node_id in path_ids]
-
         return jsonify({"path": path_coords})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     finally:
         if conn: conn.close()
+
+if __name__ == "__main__":
+    app.run(debug=True)
