@@ -1,10 +1,14 @@
+import os
 from flask import Flask, render_template, request, jsonify
 import mysql.connector
-import os
 
-app = Flask(__name__)
+# This line is the MAGIC. It tells Flask to look 'up' one level for templates
+app = Flask(__name__,
+            template_folder='../templates',
+            static_folder='../static')
 
 def get_db_connection():
+    # ... (your connection code is perfect, keep it!)
     # We use '3nPLoNR3Ghr6MfH.root' as the user and 'smart_campus_db' as the database
     return mysql.connector.connect(
         host="gateway01.ap-southeast-1.prod.aws.tidbcloud.com",

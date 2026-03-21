@@ -239,9 +239,10 @@ s
     <script>
         var map = L.map("map").setView([33.8833, -117.8854], 17);
 
-       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-}).addTo(map);
+        L.tileLayer(
+            "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+            { maxZoom: 19, attribution: '© OpenStreetMap contributors' }
+        ).addTo(map);
 
         map.whenReady(function() {
             setTimeout(() => {
